@@ -9,6 +9,17 @@
 
 #define RADIUS 10
 
+void send_vector(int fd, struct vector vec) {
+    write(fd, &(vec.size), sizeof(size_t));
+    write(fd, vec.data, sizeof(int) * vec.size);
+}
+
+void receive_vector(int fd, struct vector *vec) {
+    read(fd, &(vec->size), sizeof(size_t));
+    vec->data = (int*)malloc(sizeof(int) * vec->size);
+    read(fd, vec->data, sizeof(int) * vec->size);
+}
+
 void draw_circle(SDL_Renderer *renderer, int center_x, int center_y, int radius) {
     for (int y = -radius; y <= radius; ++y) {
         for (int x = -radius; x <= radius; ++x) {
@@ -40,6 +51,12 @@ int main(int argc, char *argv[]) {
     int img_width = surface->w;
     int img_height = surface->h;
 
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        perror("pipe\n");
+        exit(EXIT_FAILURE);
+    }
+
     pid_t pid = fork();
     
     if (pid < 0) {
@@ -47,21 +64,28 @@ int main(int argc, char *argv[]) {
         return -1;
     } else if (pid == 0) {        
         struct node *graph = build_graph(pixels, surface, img_width, img_height);
-        double max_w = 0;
-        for (int y = 0; y < img_height; ++y) {
-            for (int x = 0; x < img_width; ++x) {
-                printf("Val: %f, Sin_H: %f, Cos_H: %f\n", graph[y * img_height + x].feat.value, graph[y * img_height + x].feat.sin_hue, graph[y * img_height + x].feat.cos_hue);
-                for (int i = 0; i < graph[y * img_height + x].neigh_count; ++i) {
-                    if (graph[y * img_height + x].neighbors[i].w < 1 && graph[y * img_height + x].neighbors[i].w > 0)
-                        printf("N%d: pos - %d, w - %f\n", i, graph[y * img_height + x].neighbors[i].pos, graph[y * img_height + x].neighbors[i].w);
-                        if (graph[y * img_height + x].neighbors[i].w > max_w)
-                            max_w = graph[y * img_height + x].neighbors[i].w;
-                }
-            }
-        printf("%f\n", max_w);
+
+        close(pipefd[1]);
+
+        struct vector vec_f, vec_b;
+
+        receive_vector(pipefd[0], &vec_f);
+        receive_vector(pipefd[0], &vec_b);
+
+        for (size_t i = 0; i < vec_f.size; ++i) {
+            printf("Fg center: %d %d\n", vec_f.data[i] % img_height, vec_f.data[i] / img_height);
         }
 
+        for (size_t i = 0; i < vec_b.size; ++i) {
+            printf("Bg center: %d %d\n", vec_b.data[i] % img_height, vec_b.data[i] / img_height);
+        }
+
+        close(pipefd[0]);
+
         free_graph(graph, img_width, img_height);
+
+        free_vec(&vec_f);
+        free_vec(&vec_b);
 
         exit(EXIT_SUCCESS);
 
@@ -101,6 +125,10 @@ int main(int argc, char *argv[]) {
         init(&vec_f);
         init(&vec_b);
 
+        bool sent = false;
+
+        close(pipefd[0]);
+
         while (!quit) {
             while (SDL_PollEvent(&event) != 0) {
                 if (event.type == SDL_QUIT) {
@@ -115,7 +143,14 @@ int main(int argc, char *argv[]) {
                     } else if (event.button.button == SDL_BUTTON_RIGHT) {
                         fg = !fg;
                     }
-                } 
+                }  else if (event.type == SDL_KEYDOWN && !sent) {
+                    if (event.key.keysym.sym == SDLK_RETURN) {
+                        sent = true;
+                        
+                        send_vector(pipefd[1], vec_f);
+                        send_vector(pipefd[1], vec_b);
+                    }
+                }
             }
 
             SDL_RenderClear(renderer);
@@ -134,6 +169,8 @@ int main(int argc, char *argv[]) {
 
             SDL_RenderPresent(renderer);
         }
+
+        close(pipefd[1]);
 
         free_vec(&vec_f);
         free_vec(&vec_b);
