@@ -96,9 +96,10 @@ int main(int argc, char *argv[]) {
         bool quit = false;
         SDL_Event event;
 
-        struct vector vec;
-        init(&vec);
-        bool drawing = false;
+        bool fg = true;
+        struct vector vec_f, vec_b;
+        init(&vec_f);
+        init(&vec_b);
 
         while (!quit) {
             while (SDL_PollEvent(&event) != 0) {
@@ -106,27 +107,36 @@ int main(int argc, char *argv[]) {
                     quit = true;
                 } else if (event.type == SDL_MOUSEBUTTONDOWN) {
                     if (event.button.button == SDL_BUTTON_LEFT) {
-                        drawing = true;
-                        push(&vec, event.button.y * img_height + event.button.x);
+                        if (fg) {
+                            push(&vec_f, event.button.y * img_height + event.button.x);
+                        } else {
+                            push(&vec_b, event.button.y * img_height + event.button.x);
+                        }
+                    } else if (event.button.button == SDL_BUTTON_RIGHT) {
+                        fg = !fg;
                     }
-                }
+                } 
             }
 
             SDL_RenderClear(renderer);
 
             SDL_RenderCopy(renderer, texture, NULL, NULL);  
 
-            if (drawing) {
-                SDL_SetRenderDrawColor(renderer, 255, 165, 0, 255);
-                for (size_t i = 0; i < vec.size; ++i) {
-                    draw_circle(renderer, vec.data[i] % img_height, vec.data[i] / img_height, RADIUS);
-                }
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+            for (size_t i = 0; i < vec_f.size; ++i) {
+                draw_circle(renderer, vec_f.data[i] % img_height, vec_f.data[i] / img_height, RADIUS);
+            }
+
+            SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+            for (size_t i = 0; i < vec_b.size; ++i) {
+                draw_circle(renderer, vec_b.data[i] % img_height, vec_b.data[i] / img_height, RADIUS);
             }
 
             SDL_RenderPresent(renderer);
         }
 
-        free_vec(&vec);
+        free_vec(&vec_f);
+        free_vec(&vec_b);
 
         SDL_DestroyTexture(texture);
         texture = NULL;
