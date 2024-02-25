@@ -2,12 +2,14 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <float.h>
 #include <sys/wait.h>
 #include <omp.h>
 #include "pgraph.h"
 #include "vector.h"
 
-#define RADIUS 10
+#define RADIUS 5
+#define INF 1.0e30
 
 void send_vector(int fd, struct vector vec) {
     write(fd, &(vec.size), sizeof(size_t));
@@ -72,12 +74,52 @@ int main(int argc, char *argv[]) {
         receive_vector(pipefd[0], &vec_f);
         receive_vector(pipefd[0], &vec_b);
 
+        size_t vec_size = vec_f.size;
+        
+        for (size_t i = 0; i < vec_size; ++i) {
+            for (int y = -RADIUS; y <= RADIUS; ++y) {
+                for (int x = -RADIUS; x <= RADIUS; ++x) {
+                    if (x * x + y * y <= RADIUS * RADIUS && (x != 0 && y != 0)) {
+                        push(&vec_f, (vec_f.data[i] / img_height + y) * img_height + (vec_f.data[i] % img_height + x));
+                    }
+                }
+            }
+        }
+
+        graph[img_height * img_width].neigh_count = vec_f.size;
+        graph[img_height * img_width].neighbors = (struct neigh *)(malloc(sizeof(struct neigh) * vec_f.size));
+
         for (size_t i = 0; i < vec_f.size; ++i) {
-            printf("Fg center: %d %d\n", vec_f.data[i] % img_height, vec_f.data[i] / img_height);
+            graph[img_height * img_width].neighbors[i].pos = vec_f.data[i];
+            graph[img_height * img_width].neighbors[i].w = INF;
+        }
+
+        vec_size = vec_b.size;
+
+        for (size_t i = 0; i < vec_size; ++i) {
+            for (int y = -RADIUS; y <= RADIUS; ++y) {
+                for (int x = -RADIUS; x <= RADIUS; ++x) {
+                    if (x * x + y * y <= RADIUS * RADIUS && (x != 0 && y != 0)) {
+                        push(&vec_b, (vec_b.data[i] / img_height + y) * img_height + (vec_b.data[i] % img_height + x));
+                    }
+                }
+            }
         }
 
         for (size_t i = 0; i < vec_b.size; ++i) {
-            printf("Bg center: %d %d\n", vec_b.data[i] % img_height, vec_b.data[i] / img_height);
+            graph[vec_b.data[i]].neighbors[graph[vec_b.data[i]].neigh_count - 1].pos = img_height * img_width + 1;
+            graph[vec_b.data[i]].neighbors[graph[vec_b.data[i]].neigh_count - 1].w = INF;
+        }
+
+        for (int i = 0; i < graph[img_height * img_width].neigh_count; ++i) {
+            struct neigh n = graph[img_height * img_width].neighbors[i];
+            printf("S: x = %d, y = %d, w = %f\n", n.pos % img_height, n.pos / img_height, n.w);
+        }
+
+        for (int i = 0; i < img_height * img_width; ++i) {
+            struct neigh n = graph[i].neighbors[graph[i].neigh_count - 1];
+            if (n.w > 100)
+                printf("T: x = %d, y = %d, w = %f\n", i % img_height, i / img_height, n.w);
         }
 
         close(pipefd[0]);

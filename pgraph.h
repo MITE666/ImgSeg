@@ -90,7 +90,7 @@ struct node *build_graph(Uint32 *pixels, SDL_Surface *surface, int img_width, in
 
             graph[y * img_height + x].feat = rgb_to_pfeat(r, g, b);
             
-            int n = 4;
+            int n = 5;
             if (x == 0 || x == img_width - 1)
                 --n;
             if (y == 0 || y == img_height - 1)
@@ -111,6 +111,7 @@ struct node *build_graph(Uint32 *pixels, SDL_Surface *surface, int img_width, in
             for (int i = 0; i < 4; ++i) {
                 int new_x = x + di[i];
                 int new_y = y + dj[i];
+
                 if (new_x < 0 || new_x >= img_width || new_y < 0 || new_y >= img_height)
                     break;
                 
@@ -119,9 +120,16 @@ struct node *build_graph(Uint32 *pixels, SDL_Surface *surface, int img_width, in
                 n.w = exp(-(eulerian_dif(graph[y * img_height + x].feat, graph[new_y * img_height + new_x].feat)) / (2 * pow(SIGMA, 2)));
                 neighbors[k++] = n;
             }
+            struct neigh n;
+            n.pos = img_height * img_width + 1;
+            n.w = -1;
+            neighbors[k] = n;
             graph[y * img_height + x].neighbors = neighbors;
         }
     }
+
+    graph[img_height * img_width + 1].neigh_count = 0;
+    graph[img_height * img_width + 1].neighbors = NULL;
 
     return graph;
 }
