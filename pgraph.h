@@ -126,4 +126,13 @@ struct node *build_graph(Uint32 *pixels, SDL_Surface *surface, int img_width, in
     return graph;
 }
 
+void free_graph(struct node *graph, int img_width, int img_height) {
+    for (int y = 0; y < img_height; ++y) {
+        for (int x = 0; x < img_width; ++x) {
+            free(graph[y * img_height + x].neighbors);
+        }
+    }
+    free(graph);
+}
+
 #endif

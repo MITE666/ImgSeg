@@ -5,6 +5,19 @@
 #include <sys/wait.h>
 #include <omp.h>
 #include "pgraph.h"
+#include "vector.h"
+
+#define RADIUS 10
+
+void draw_circle(SDL_Renderer *renderer, int center_x, int center_y, int radius) {
+    for (int y = -radius; y <= radius; ++y) {
+        for (int x = -radius; x <= radius; ++x) {
+            if (x * x + y * y <= radius * radius) {
+                SDL_RenderDrawPoint(renderer, center_x + x, center_y + y);
+            }
+        }
+    }
+}
 
 int main(int argc, char *argv[]) {
     const char *dir_path = "./image_src/";
@@ -48,6 +61,8 @@ int main(int argc, char *argv[]) {
         printf("%f\n", max_w);
         }
 
+        free_graph(graph, img_width, img_height);
+
         exit(EXIT_SUCCESS);
 
     } else {
@@ -79,21 +94,39 @@ int main(int argc, char *argv[]) {
         }
 
         bool quit = false;
-
         SDL_Event event;
+
+        struct vector vec;
+        init(&vec);
+        bool drawing = false;
 
         while (!quit) {
             while (SDL_PollEvent(&event) != 0) {
-                if (event.type == SDL_QUIT)
+                if (event.type == SDL_QUIT) {
                     quit = true;
+                } else if (event.type == SDL_MOUSEBUTTONDOWN) {
+                    if (event.button.button == SDL_BUTTON_LEFT) {
+                        drawing = true;
+                        push(&vec, event.button.y * img_height + event.button.x);
+                    }
+                }
             }
 
             SDL_RenderClear(renderer);
 
             SDL_RenderCopy(renderer, texture, NULL, NULL);  
 
+            if (drawing) {
+                SDL_SetRenderDrawColor(renderer, 255, 165, 0, 255);
+                for (size_t i = 0; i < vec.size; ++i) {
+                    draw_circle(renderer, vec.data[i] % img_height, vec.data[i] / img_height, RADIUS);
+                }
+            }
+
             SDL_RenderPresent(renderer);
         }
+
+        free_vec(&vec);
 
         SDL_DestroyTexture(texture);
         texture = NULL;
