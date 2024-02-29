@@ -111,16 +111,21 @@ int main(int argc, char *argv[]) {
             graph[vec_b.data[i]].neighbors[graph[vec_b.data[i]].neigh_count - 1].w = INF;
         }
 
-        for (int i = 0; i < graph[img_height * img_width].neigh_count; ++i) {
-            struct neigh n = graph[img_height * img_width].neighbors[i];
-            printf("S: x = %d, y = %d, w = %f\n", n.pos % img_height, n.pos / img_height, n.w);
+        for (int i = 0; i < vec_f.size; ++i) {
+            struct pfeat f = graph[vec_f.data[i]].feat;
+            printf("%d, %d, %f, %f, %f\n", vec_f.data[i] % img_height, vec_f.data[i] / img_height, f.value, f.sin_hue, f.cos_hue);
         }
 
-        for (int i = 0; i < img_height * img_width; ++i) {
-            struct neigh n = graph[i].neighbors[graph[i].neigh_count - 1];
-            if (n.w > 100)
-                printf("T: x = %d, y = %d, w = %f\n", i % img_height, i / img_height, n.w);
-        }
+        // for (int i = 0; i < graph[img_height * img_width].neigh_count; ++i) {
+        //     struct neigh n = graph[img_height * img_width].neighbors[i];
+        //     printf("S: x = %d, y = %d, w = %f\n", n.pos % img_height, n.pos / img_height, n.w);
+        // }
+
+        // for (int i = 0; i < img_height * img_width; ++i) {
+        //     struct neigh n = graph[i].neighbors[graph[i].neigh_count - 1];
+        //     if (n.w > 100)
+        //         printf("T: x = %d, y = %d, w = %f\n", i % img_height, i / img_height, n.w);
+        // }
 
         close(pipefd[0]);
 
